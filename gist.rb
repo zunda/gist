@@ -1,12 +1,15 @@
 #!/usr/bin/env ruby
 
 # = USAGE
+# == Publishing onto gist
 #  gist < file.txt
 #  echo secret | gist -p  # or --private
+#
+# == Fetching from gist
 #  gist 1234 > something.txt
 #
 # = INSTALL
-#  curl http://github.com/evaryont/gist/tree/master%2Fgist.rb?raw=true > gist &&
+#  curl http://github.com/zunda/gist/tree/master%2Fgist.rb?raw=true > gist &&
 #  chmod 755 gist &&
 #  sudo mv gist /usr/local/bin/gist
 
@@ -25,12 +28,12 @@ class Gist
 			return open(gist_id + '.txt').read if gist_id[/https?:\/\/gist.github.com\/\d+$/]
 		end
 
-		def write(content, private_gist)
+		def write(content, private_gist, filename = nil)
 			url = URI.parse('http://gist.github.com/gists')
 			if @proxy
-				req = Net::HTTP::Proxy(@proxy.host, @proxy.port).post_form(url, data(nil, nil, content, private_gist))
+				req = Net::HTTP::Proxy(@proxy.host, @proxy.port).post_form(url, data(filename, nil, content, private_gist))
 			else
-				req = Net::HTTP.post_form(url, data(nil, nil, content, private_gist))
+				req = Net::HTTP.post_form(url, data(filename, nil, content, private_gist))
 			end
 			copy req['Location']
 		end

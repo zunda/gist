@@ -33,18 +33,24 @@ class Gist
 
 		attr_reader :url
 
-		def initialize(content, filename = nil, private = nil)
-			@content = content
-			@filename = filename
+		def initialize(private = false)
+			@contents = Array.new
 			@private = private
 		end
 
+		def add(data, path = nil)
+			@contents.push([data, path])
+		end
+
 		def form
-			h = {
-				'file_ext[gistfile1]'      => nil,
-				'file_name[gistfile1]'     => @filename,
-				'file_contents[gistfile1]' => @content
-			}
+			raise 'No input files are specified' if @contents.empty?
+			h = Hash.new
+			@contents.each_with_index do |content, idx|
+				data, path = content
+				h["file_ext[gistfile#{idx+1}]"] = nil
+				h["file_name[gistfile#{idx+1}]"] = File.basename(path)
+				h["file_contents[gistfile#{idx+1}]"] = data
+			end
 			h['private'] = 'on' if @private
 			h.merge(Push.auth)
 			return h
@@ -59,6 +65,12 @@ class Gist
 end
 
 if __FILE__ == $0
-	gist = Gist::Push.new(File.open(ARGV[0]).read, ARGV[0]).post
+	gist = Gist::Push.new
+	ARGV.each do |src|
+		File.open(src) do |f|
+			gist.add(f.read, src)
+		end
+	end
+	gist.post
 	puts gist.url
 end

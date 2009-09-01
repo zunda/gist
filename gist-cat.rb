@@ -7,121 +7,58 @@
 # and distribution of modified versions of this work as long as the
 # above copyright notice is included.
 #
-require 'open-uri'
 require 'net/http'
 Net::HTTP.version_1_2
+require 'uri'
 
 class Gist
 	def Gist.proxy
-		(p = ENV['http_proxy']) ? URI.parse(p) : nil
-	end
-end
-
-class GistPush
-	def GistPush.auth
-		user  = `git config --global github.user`.strip
-		unless user.empty?
-			token = `git config --global github.token`.strip
-			return {'login' => user, 'token' => token}
-		else
-			return {}
-		end
+		(proxy = ENV['http_proxy']) ? URI.parse(proxy) : nil
 	end
 
-	def GistPush.url
-		return 'http://gist.github.com/gists'
-	end
-
-	def initialize(content, filename = nil, private = nil)
-		@content = content
-		@filename = filename
-		@private = private
-	end
-
-	def form
-		r = {
-			'file_ext[gistfile1]'      => nil,
-			'file_name[gistfile1]'     => @filename,
-			'file_contents[gistfile1]' => @content
-		}
-		r['private'] = 'on' if @private
-		r.merge(GistPush.auth)
-		return r
-	end
-
-	def post
-			res = Net::HTTP::Proxy(GitPush.proxy).post_form(url, form)
-	end
-end
-
-
-class Gist
-	
-
-
-require 'open-uri'
-require 'net/http'
-
-class Gist
-	class << self
-		GIST_URL = 'http://gist.github.com/%s.txt'
-
-		@proxy = ENV['http_proxy'] ? URI(ENV['http_proxy']) : nil
-
-		def read(gist_id)
-			return help if gist_id.nil? || gist_id[/^\-h|help$/]
-			return open(GIST_URL % gist_id).read unless gist_id.to_i.zero?
-			return open(gist_id + '.txt').read if gist_id[/https?:\/\/gist.github.com\/\d+$/]
-		end
-
-		def write(content, private_gist, filename = nil)
-			url = URI.parse('http://gist.github.com/gists')
-			if @proxy
-				req = Net::HTTP::Proxy(@proxy.host, @proxy.port).post_form(url, data(filename, nil, content, private_gist))
+	class Push
+		def Push.auth
+			user  = `git config github.user`.strip
+			unless user.empty?
+				token = `git config github.token`.strip
+				return {'login' => user, 'token' => token}
 			else
-				req = Net::HTTP.post_form(url, data(filename, nil, content, private_gist))
+				return {}
 			end
-			copy req['Location']
 		end
 
-		def help
-			require 'rdoc/usage'
-			RDoc.usage('USAGE') # w/o parameters it does both INSTALL and USAGE
+		def Push.url
+			return URI.parse('http://gist.github.com/gists')
 		end
 
-		private
-		def copy(content)
-			case RUBY_PLATFORM
-			when /darwin/
-				return content if `which pbcopy`.strip == ''
-				IO.popen('pbcopy', 'r+') { |clip| clip.print content }
-				`open #{content}`
-			when /linux/
-				return content if `which xclip  2> /dev/null`.strip == ''
-				IO.popen('xclip', 'r+') { |clip| clip.print content }
-			when /i386-cygwin/
-				return content if `which putclip`.strip == ''
-				IO.popen('putclip', 'r+') { |clip| clip.print content }
-			end
+		attr_reader :url
 
-			content
+		def initialize(content, filename = nil, private = nil)
+			@content = content
+			@filename = filename
+			@private = private
 		end
 
-		def data(name, ext, content, private_gist)
-			return {
-				'file_ext[gistfile1]'      => ext,
-				'file_name[gistfile1]'     => name,
-				'file_contents[gistfile1]' => content
-			}.merge(private_gist ? { 'private' => 'on' } : {}).merge(auth)
+		def form
+			h = {
+				'file_ext[gistfile1]'      => nil,
+				'file_name[gistfile1]'     => @filename,
+				'file_contents[gistfile1]' => @content
+			}
+			h['private'] = 'on' if @private
+			h.merge(Push.auth)
+			return h
 		end
 
-		def auth
+		def post
+			res = Net::HTTP::Proxy(Gist.proxy).post_form(Push.url, form)
+			@url = res['location']
+			return self
 		end
 	end
 end
 
-if $stdin.tty?
-	puts Gist.read(ARGV.first)
-else
-	puts Gist.write($stdin.read, %w[-p --private].include?(ARGV.first))
+if __FILE__ == $0
+	gist = Gist::Push.new(File.open(ARGV[0]).read, ARGV[0]).post
+	puts gist.url
 end

@@ -12,6 +12,8 @@ Net::HTTP.version_1_2
 require 'uri'
 
 class Gist
+	class Error < Exception; end
+
 	def Gist.proxy
 		(proxy = ENV['http_proxy']) ? URI.parse(proxy) : nil
 	end
@@ -19,12 +21,10 @@ class Gist
 	class Push
 		def Push.auth
 			user  = `git config github.user`.strip
-			unless user.empty?
-				token = `git config github.token`.strip
-				return {'login' => user, 'token' => token}
-			else
-				return {}
-			end
+			raise Gist::Error, 'github.user is not set' if user.empty?
+			token = `git config github.token`.strip
+			raise Gist::Error, 'github.token is not set' if user.empty?
+			return {'login' => user, 'token' => token}
 		end
 
 		def Push.url
@@ -65,12 +65,17 @@ class Gist
 end
 
 if __FILE__ == $0
-	gist = Gist::Push.new
-	ARGV.each do |src|
-		File.open(src) do |f|
-			gist.add(f.read, src)
+	begin
+		gist = Gist::Push.new
+		ARGV.each do |src|
+			File.open(src) do |f|
+				gist.add(f.read, src)
+			end
 		end
+		gist.post
+		puts gist.url
+	rescue Gist::Error
+		$stderr.puts "#{$0}: #{$!}"
+		exit 1
 	end
-	gist.post
-	puts gist.url
 end

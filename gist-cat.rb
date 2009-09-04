@@ -59,8 +59,14 @@ class Gist
 
 		def post!
 			res = Net::HTTP::Proxy(Gist.proxy).post_form(Push.url, form)
-			@url = res['location']
-			return self
+			case res
+			when Net::HTTPFound
+				@url = res['location']
+				return self
+			else
+				raise Gist::Error, "#{res.code} #{res.message}"
+			end
+			return nil
 		end
 	end
 end

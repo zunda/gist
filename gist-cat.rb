@@ -23,7 +23,7 @@ class Gist
 			user  = `git config github.user`.strip
 			raise Gist::Error, 'github.user is not set' if user.empty?
 			token = `git config github.token`.strip
-			raise Gist::Error, 'github.token is not set' if user.empty?
+			raise Gist::Error, 'github.token is not set' if token.empty?
 			return {'login' => user, 'token' => token}
 		end
 

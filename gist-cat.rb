@@ -44,7 +44,7 @@ class Gist
 		end
 
 		def form
-			raise 'No input files are specified' if @contents.empty?
+			raise Gist::Error, 'No input files are specified' if @contents.empty?
 			h = Hash.new
 			@contents.each_with_index do |content, idx|
 				data, path = content
@@ -72,8 +72,10 @@ if __FILE__ == $0
 
 	is_anon = false
 	is_priv = false
+	is_dry = false
 	opt.on('-a', '--anonymous', 'Posts gist as anonymous'){is_anon = true}
 	opt.on('-p', '--private', 'Makes gist private'){is_priv = true}
+	opt.on('-n', '--dryrun', 'Does not post. Prints data to be sent.'){is_dry = true}
 	opt.on('-h', '--help', 'Prints this message and quit'){
 		puts opt.help
 		exit 0
@@ -93,8 +95,13 @@ if __FILE__ == $0
 				gist.add(f.read, src)
 			end
 		end
-		gist.post!
-		puts gist.url
+		unless is_dry
+			gist.post!
+			puts gist.url
+		else
+			require 'pp'
+			pp gist.form
+		end
 	rescue Gist::Error
 		$stderr.puts $!
 		exit 1

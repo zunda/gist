@@ -44,12 +44,12 @@ class Gist
 		end
 
 		def form
-			raise Gist::Error, 'No input files are specified' if @contents.empty?
+			raise Gist::Error, 'No input is specified' if @contents.empty?
 			h = Hash.new
 			@contents.each_with_index do |content, idx|
 				data, path = content
 				h["file_ext[gistfile#{idx+1}]"] = nil
-				h["file_name[gistfile#{idx+1}]"] = File.basename(path)
+				h["file_name[gistfile#{idx+1}]"] = path ? File.basename(path) : nil
 				h["file_contents[gistfile#{idx+1}]"] = data
 			end
 			h['private'] = 'on' if @private
@@ -96,10 +96,14 @@ if __FILE__ == $0
 
 	begin
 		gist = Gist::Push.new(is_priv, is_anon)
-		ARGV.each do |src|
-			File.open(src) do |f|
-				gist.add(f.read, src)
+		unless ARGV.empty?
+			ARGV.each do |src|
+				File.open(src) do |f|
+					gist.add(f.read, src)
+				end
 			end
+		else
+			gist.add($stdin.read)
 		end
 		unless is_dry
 			gist.post!
